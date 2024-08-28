@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Doping in Professional Bicycle Racing</title>
+        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Roboto:wght@400;700&family=Lato:wght@400;700&family=Lobster&display=swap" rel="stylesheet">
+
+        <script src="https://d3js.org/d3.v7.min.js"></script>
+        
+        <style>
+            html, body {
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                display: flex;
+                flex-direction: column;
+                background: rgb(169,169,169);
+                background: linear-gradient(0deg, rgba(169,169,169,1) 30%, rgba(135,206,235,1) 100%);
+            }
+            h1 {
+                margin: 100px auto 50px;
+                text-align: center;
+                font-size: 2.5em;
+                font-family: "Oswald", sans-serif;
+            }
+            .legend-color {
+                width: 20px;
+                height: 20px;
+                margin-right: 5px;
+                display: inline-block;
+            }
+            .doping {
+                fill: #FF4500;
+            }
+            .no-doping {
+            fill: #2F4F4F;
+            }
+            svg {
+                margin: 0 auto;
+                display: flex;
+                justify-content: center;
+                background-color: #F8F8FF;
+                border-radius: 5px;
+                box-shadow: 0px 5px 5px -3px rgba(0, 0, 0, 0.2),
+                            0px 8px 10px 1px rgba(0, 0, 0, 0.14),
+                            0px 3px 14px 2px rgba(0, 0, 0, 0.12);
+            }            
+            #legend {
+                margin: 30px auto;
+                font-family: "Roboto", sans-serif;
+                display: flex;
+                gap: 20px;
+            }
+            #tooltip {
+                position: absolute;
+                background-color: #A9A9A9;
+                padding: 8px;
+                border-radius: 5px;
+                pointer-events: none;
+                opacity: 0;
+                box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.2), 
+                            0px 1px 1px rgba(0, 0, 0, 0.14), 
+                            0px 2px 1px rgba(0, 0, 0, 0.12);
+                font-family: "Roboto", sans-serif;
+            }
+            .dot:hover {
+                fill: #FFD700;
+                cursor: pointer;
+            }
+        </style>
+    </head>
+    <body>
+        <h1 id="title">Doping in Professional Bicycle Racing</h1>
+        <div id="chart">
+            <svg id="scatterplot"></svg>
+        </div>
+        <div id="tooltip" class="hidden"></div>
+        <div id="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #FF4500;"></div> Riders with doping allegations
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #2F4F4F;"></div> Riders without doping allegations
+            </div>
+        </div>
+
+
+        <script>
+            //fetch data
+            d3.json("https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/cyclist-data.json")
+                .then(data => {
+                    data.forEach(d => {
+                        d.Year = new Date(d.Year.toString());
+                        d.Time = new Date(`1970-01-01T00:${d.Time}`);
+                    })
+                
+            //chart dimensions
+            const margin = { top: 30, right: 30, bottom: 40, left: 60 };
+            const width = 800;
+            const height = 400;
+
+            //svg element
+            const svg = d3.select("#scatterplot")
+                .attr("width", width)
+                .attr("height", height)
+                .append("g")
+
+            //x and y scale
+            const xScale = d3.scaleTime()
+                .domain([new Date("1993-01-01"), d3.max(data, d => d.Year)])
+                .range([margin.left, width - margin.right]);
+
+            const yScale = d3.scaleTime()
+                .domain(d3.extent(data, d => d.Time))
+                .range([margin.top, height - margin.bottom]);
+            
+            //x and y axis
+            const xAxis = d3.axisBottom(xScale).tickFormat(d3.timeFormat("%Y"));
+            const yAxis = d3.axisLeft(yScale).tickFormat(d3.timeFormat("%M:%S"));
+
+            svg.append("g")
+                .attr("id", "x-axis")
+                .attr("transform", `translate(0, ${height - margin.bottom})`)
+                .call(xAxis);
+
+            svg.append("g")
+                .attr("id", "y-axis")
+                .attr("transform", `translate(${margin.left}, 0)`)
+                .call(yAxis);
+            
+            //dots and tooltip
+            const tooltip = d3.select("#tooltip");
+
+            svg.selectAll("circle")
+                .data(data)
+                .enter()
+                .append("circle")
+                .attr("class", d => `dot ${d.Doping ? "doping" : "no-doping"}`)
+                .attr("data-xvalue", d => d.Year.toISOString())
+                .attr("data-yvalue", d => d.Time.toISOString())
+                .attr("cx", d => xScale(d.Year))
+                .attr("cy", d => yScale(d.Time))
+                .attr("r", 7)
+                .on("mouseover", (event, d) => {
+                        tooltip.transition().duration(200).style("opacity", 1);
+                        tooltip.html(`${d.Name}: ${d.Nationality}<br>Year: ${d.Year.getFullYear()}, Time: ${d3.timeFormat("%M:%S")(d.Time)}<br>${d.Doping ? d.Doping : "No doping allegations"}`)
+                            .attr("data-year", d.Year.toISOString())
+                            .style("left", (event.pageX - 30) + "px")
+                            .style("top", (event.pageY + 30) + "px");
+                    })
+                    .on("mouseout", () => {
+                        tooltip.transition().duration(500).style("opacity", 0);
+                    });
+            
+            })
+            .catch(error => {
+                console.error('Error fetching or processing data:', error);
+            });
+        </script>
+        <script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+    </body>
+</html>
